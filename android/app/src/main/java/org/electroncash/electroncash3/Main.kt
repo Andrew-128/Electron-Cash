@@ -1,8 +1,10 @@
 package org.electroncash.electroncash3
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Bundle
 import android.text.Html
 import android.text.SpannableStringBuilder
@@ -19,13 +21,16 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.observe
 import com.chaquo.python.PyException
 import kotlinx.android.synthetic.main.change_password.*
 import kotlinx.android.synthetic.main.main.*
+import kotlinx.android.synthetic.main.wallet_export.*
 import kotlinx.android.synthetic.main.wallet_rename.*
 import kotlinx.android.synthetic.main.wallet_open.*
+import java.io.File
 import kotlin.properties.Delegates.notNull
 import kotlin.reflect.KClass
 
@@ -233,6 +238,9 @@ class MainActivity : AppCompatActivity(R.layout.main) {
             R.id.menuRename -> showDialog(this, WalletRenameDialog().apply {
                 arguments = Bundle().apply { putString("walletName", daemonModel.walletName) }
             })
+            R.id.menuExport -> showDialog(this, WalletExportDialog().apply {
+                arguments = Bundle().apply { putString("walletName", daemonModel.walletName) }
+            })
             R.id.menuDelete -> showDialog(this, DeleteWalletConfirmDialog().apply {
                 arguments = Bundle().apply { putString("walletName", daemonModel.walletName) }
             })
@@ -430,6 +438,12 @@ class OpenWalletDialog : TaskLauncherDialog<String>() {
             })
             dismiss()
         }
+        btnExport.setOnClickListener {
+            showDialog(this, WalletExportDialog().apply {
+                arguments = Bundle().apply { putString("walletName", walletName) }
+            })
+            dismiss()
+        }
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
             showDialog(activity!!, DeleteWalletConfirmDialog().apply {
                 arguments = Bundle().apply { putString("walletName", walletName) }
@@ -594,6 +608,55 @@ class WalletRenameDialog : AlertDialogFragment() {
             })
         }
         (activity as MainActivity).refresh()
+    }
+}
+
+
+class WalletExportDialog : AlertDialogFragment() {
+    val exportDirName = "wallet_exports"
+
+    override fun onBuildDialog(builder: AlertDialog.Builder) {
+        builder.setTitle(R.string.export_wallet)
+                .setView(R.layout.wallet_export)
+                .setPositiveButton(android.R.string.ok, null)
+                .setNegativeButton(android.R.string.cancel, null)
+    }
+
+    override fun onCreateDialog(savedInstanceState: Bundle?): AlertDialog {
+        val dialog = super.onCreateDialog(savedInstanceState)
+        dialog.window!!.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+        return dialog
+    }
+
+    @SuppressLint("SetTextI18n")
+    override fun onFirstShowDialog() {
+        val walletName = arguments!!.getString("walletName")!!
+        val extension = ".ecw"
+        etExportFileName.setText("${walletName}${extension}")
+        etExportFileName.setSelection(0, etExportFileName.getText().length - extension.length)
+    }
+
+    override fun onShowDialog() {
+        val walletName = arguments!!.getString("walletName")!!
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            val exportFileName = etExportFileName.text
+            if (exportFileName.contains('/')) {
+                toast(R.string.file_names)
+            } else {
+                val exportDir = File(activity!!.cacheDir, exportDirName)
+                val exportFilePath = "$exportDir/$exportFileName"
+                val exportFile = File(exportFilePath)
+                val exportFileUri: Uri = FileProvider.getUriForFile(activity!!,
+                        "org.electroncash.wallet.wallet_exports", exportFile)
+                daemonModel.commands.callAttr("copy_wallet", walletName, exportFilePath)
+                val sendIntent = Intent()
+                sendIntent.type = "application/octet-stream"
+                sendIntent.action = Intent.ACTION_SEND
+                sendIntent.putExtra(Intent.EXTRA_STREAM, exportFileUri)
+                startActivity(Intent.createChooser(sendIntent, "SHARE"))
+                dismiss()
+            }
+        }
     }
 }
 
