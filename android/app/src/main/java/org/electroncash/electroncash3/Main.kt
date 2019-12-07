@@ -641,7 +641,7 @@ class WalletExportDialog : AlertDialogFragment() {
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             val exportFileName = etExportFileName.text
             if (exportFileName.contains('/')) {
-                toast(R.string.file_names)
+                toast(R.string.filenames_cannot)
             } else {
                 val exportDir = File(activity!!.cacheDir, exportDirName)
                 val exportFilePath = "$exportDir/$exportFileName"
