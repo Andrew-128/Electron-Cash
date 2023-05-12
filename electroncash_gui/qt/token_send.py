@@ -763,8 +763,8 @@ class SendTokenForm(WindowModalDialog, PrintError, OnDestroyedMixin):
                 if item.childCount() > 0:
                     item.setExpanded(True)
 
-        # In send and edit mode, if we have no NFTs, hide this widget completely
-        if self.form_mode in (self.FormMode.send, self.FormMode.edit):
+        # In send mode, if we have no NFTs, hide this widget completely
+        if self.form_mode == self.FormMode.send:
             self.gb_nft.setHidden(not self.have_nfts())
 
     def diagnostic_name(self):
